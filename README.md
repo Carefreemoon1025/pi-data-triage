@@ -1,173 +1,172 @@
-# PiDataTriage — 基于开源 Pi Agent Runtime 的数据分析智能体
+# PiDataTriage — 让 AI Agent 替你分析数据
 
 [![Python](https://img.shields.io/badge/Python-3.13-blue)](https://python.org)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.60-red)](https://streamlit.io)
 [![Pi Agent](https://img.shields.io/badge/Pi_Agent-0.82.1-green)](https://pi.dev)
 [![DeepSeek](https://img.shields.io/badge/LLM-DeepSeek_v4‑Flash-purple)](https://deepseek.com)
 
-> 让 AI Agent 自动完成数据分析——上传 CSV，Agent 自主完成数据画像、质量检测、统计建模与可视化，全程无需手动写代码。
+> **不是调 API，是驱动 Agent。** 上传一个 CSV，Agent 自主完成数据画像、质量诊断、统计建模和可视化——全程你只需要点一下按钮。
 
-## ✨ 一句话定位
+---
 
-基于开源 **Pi Agent Runtime** 构建的数据分析 triage 工具，通过 **跨语言 RPC 编排** + **自定义 Agent Skill**，将 LLM 从「聊天式分析」升级为「工具调用式专业分析」。
+## 为什么这不算"又一个 ChatGPT 套壳"
 
-## 🎯 为什么这个项目值得关注
-
-市面上大多数 LLM 应用只是简单的 API 调用链：用户提问 → 拼接 prompt → 调 LLM → 返回文本。这不是真正的 Agent。
-
-**这个项目的不同之处**：
+大多数所谓的"AI 数据分析工具"做了什么？
 
 ```
-传统 LLM 应用：      用户 → API → LLM → 文本输出
-PiDataTriage：       用户 → Agent Runtime → 工具调用 → LLM 推理 → 行动
-                              ↕
-                    自定义 Skill (python 工具)
+用户上传 CSV → 把 csv 内容拼进 prompt → 调 OpenAI → 展示返回的文本
 ```
 
-Agent 会**自主决定**何时调用哪个工具、用什么参数、如何解读工具返回的结果——就像一个有判断力的数据分析师，而不仅是一个翻译 prompt 的传声筒。
+这叫 **LLM 应用**，不叫 **Agent**。
 
-## 🏗️ 架构
+PiDataTriage 的 Agent 不同。它**不会直接把数据喂给 LLM**，而是自己决定调用什么工具：
 
 ```
-┌────────────────────────────────────────┐
-│  Streamlit UI (Python)                 │
-│  上传 CSV · 流式展示 · 过程可视化        │
-└──────────────┬─────────────────────────┘
+你上传 CSV
+    ↓
+Agent 收到数据 → 决定："我需要先看看这个数据集长什么样"
+    ↓
+Agent 调用 data-triage Skill → pandas 跑数据画像 → 拿到画像结果
+    ↓
+Agent 解读画像 → 发现高维数据 → 决定："需要 PCA 降维"
+    ↓
+Agent 调用 stat-deep-dive Skill → scikit-learn PCA → 拿到降维结果
+    ↓
+Agent 解读 PCA 结果 → 决定："用散点图和热力图展示"
+    ↓
+Agent 调用 viz-craft Skill → plotly 出图 → 展示给你
+```
+
+**关键区别**：Agent 自己决定"什么时候用什么工具"、"怎么解读工具的返回值"、"下一步该做什么"——LLM 只是它推理的大脑，不是全部。
+
+---
+
+## 🏗️ 架构：Python 业务层 + TypeScript Agent Runtime
+
+```
+┌──────────────────────────────────────────┐
+│  Streamlit UI (Python)                   │  ← 你看到的界面
+│  上传 CSV · 流式展示 · Agent 决策过程     │
+└──────────────┬───────────────────────────┘
                │
-┌──────────────▼─────────────────────────┐
-│  Python 业务层                         │
-│  - 会话管理 / 数据预处理 / 报告生成      │
-└──────────────┬─────────────────────────┘
-               │ picable (Pi RPC wrapper)
-               │ JSONL over stdin/stdout
-┌──────────────▼─────────────────────────┐
-│  Pi Agent Runtime (TypeScript)         │
-│  - Agent 编排 · 工具调度 · 上下文管理    │
-└──────────────┬─────────────────────────┘
-               │ 调用 Skill helper 脚本
-┌──────────────▼─────────────────────────┐
-│  自定义 Agent Skills (含 Python 脚本)   │
-│  data-triage    → EDA & 数据画像       │
-│  stat-deep-dive → PCA/聚类/时序分解    │
-│  viz-craft      → 智能可视化(plotly)   │
-└────────────────────────────────────────┘
+┌──────────────▼───────────────────────────┐
+│  Python 业务层                           │
+│  会话管理 · 数据预处理 · Prompt 构造      │
+└──────────────┬───────────────────────────┘
+               │ picable (RPC wrapper)
+               │ JSONL over stdin/stdout —— 不是 HTTP，是进程间管道
+┌──────────────▼───────────────────────────┐
+│  Pi Agent Runtime (TypeScript)           │  ← Agent 的"大脑"
+│  编排工具调用 · 管理上下文 · 决策循环     │
+└──────────────┬───────────────────────────┘
+               │ Agent 通过 bash 工具执行
+┌──────────────▼───────────────────────────┐
+│  自定义 Agent Skills                     │  ← Agent 的"工具箱"
+│  data-triage     → pandas 数据画像       │
+│  stat-deep-dive  → scikit-learn 统计建模 │
+│  viz-craft       → plotly 智能可视化     │
+└──────────────────────────────────────────┘
 ```
 
-## 🚀 Agent 能力展示
+**为什么是跨语言架构？** Pi Agent Runtime 是 TypeScript 写的——JS 生态是 agent 框架最活跃的地方。但数据分析工具链（pandas/scikit-learn/plotly）只在 Python 生态成熟。通过 Pi 的 **RPC 模式**（JSONL over stdin/stdout），Python 侧用 picable 驱动 TypeScript Agent，Agent 通过 bash 调用 Python 工具脚本——各取所长，零耦合。
 
-### 1. 自主工具调用（核心亮点）
+---
 
-Agent 不是被动接受指令，而是**自主分析任务需求，选择合适的工具**：
+## 🚀 Agent 实际行为示例
 
-- 上传 CSV → Agent 发现数据 → 自动调用 `data-triage` Skill → 生成数据画像
-- 发现高维数据 → Agent 判断需要降维 → 调用 `stat-deep-dive` Skill → PCA 分析
-- 发现时间列 → Agent 识别时序模式 → 调用时间序列分解
-- 分析完成 → Agent 选择合适图表 → 调用 `viz-craft` Skill → 生成 plotly 图表
-
-### 2. 跨语言 Agent 编排
-
-Pi Agent Runtime 是 TypeScript 项目，通过其 **RPC 模式**（JSONL over stdin/stdout）实现 Python↔TypeScript 双向通信：
-
-```python
-# Python 业务层通过 picable 驱动 TypeScript Agent
-from picable import PiClient, PiClientOptions
-
-client = PiClient(provider="deepseek", model="deepseek-v4-flash")
-events = client.subscribe_events(maxsize=500)
-client.prompt("请分析这个数据集的数据质量问题")
-
-# Agent 自主决定调用哪些工具，Python 侧接收流式结果
-for event in events:
-    process(event)  # 实时展示 Agent 的思考与行动过程
-```
-
-### 3. Agent Skills 标准实现
-
-每个 Skill 遵循 [Agent Skills 标准](https://agentskills.io/specification)，包含：
+用 `co2-emissions-per-capita.csv.gz` 跑一遍，Agent 的真实输出：
 
 ```
-data-triage/
-├── SKILL.md          # Agent 何时触发 + 做什么
-└── scripts/helper.py # Python 工具脚本
+[Agent 决策]  正在调用 data-triage Skill...
+[data-triage 返回] 198 行 × 8 列, 0 缺失值, 发现高偏态数值分布
+[Agent 决策]  数值列'Per Capita Emissions'偏度很高，需要统计建模。
+              正在调用 stat-deep-dive Skill (PCA + 聚类)...
+[stat-deep-dive 返回] PCA 前两个主成分解释了 89% 的方差。
+                      KMeans 聚类发现 3 个明显群组（高排放/中等/低排放国家）
+[Agent 决策]  聚类结果清晰。正在调用 viz-craft Skill 生成散点图...
+[Agent 最终输出] 
+
+## 数据集概览
+该数据集包含全球 198 个国家的人均 CO2 排放量，时间跨度...
+  
+## 数据质量问题
+1. 年份字段需统一格式（部分为字符串）
+2. 排放量列存在极端值（Qatar 人均 38.8 吨，中位数仅 2.1 吨）
+  
+## 深度分析
+- PCA 显示第一主成分可解释 72% 的方差，主要由排放量贡献
+- 3 个聚类群组清晰分离，代表不同的排放水平
+- [散点图已生成]
 ```
 
-Agent 启动时只加载 Skill 描述（渐进披露），任务匹配时用 `read` 工具加载完整指令，然后通过 `bash` 工具执行 Python 脚本。这正是「让 LLM 用工具而非猜答案」的标准范式。
+> 每一条"Agent 决策"都是 Agent 自主做出的，不是预先写好的 if-else。
 
-## 🔧 工程挑战与解决
+---
 
-| 挑战 | 解决 |
-|------|------|
-| **跨语言 RPC 集成**：Pi 是 TS 项目，Python 如何驱动？ | 调研 Pi 的 RPC 模式（JSONL stdin/stdout），选用 picable 作为 Python wrapper，实现零 HTTP 开销的进程间通信 |
-| **Windows 兼容性**：npm 全局安装的 `pi` 子进程无法被 Python subprocess 找到 | 定位到 `PiClientOptions.executable` 依赖 PATH 变量，通过 `dataclasses.replace` 注入 Windows 绝对路径 |
-| **版本兼容性**：picable 0.1.0 不认识 Pi 0.82.1 新增的 `agent_settled` 事件类型 | 逆向 picable 的 AgentEvent 类型体系，新增 `AgentSettledEvent` 数据类并注册到事件解析链 |
-| **多 Provider 适配**：从 OpenAI → DeepSeek 切换时 auth.json / runtime_config / PiClientOptions 三层配置需全链路对齐 | 逐层排查认证链路，统一为 DeepSeek provider + deepseek-v4-flash 模型 |
+## 🔧 工程技术亮点
+
+| 做了什么 | 为什么难 |
+|----------|---------|
+| **跨语言 Agent 编排** | Pi 是 TypeScript 项目，通过 RPC 模式（JSONL stdin/stdout）与 Python 通信。不是调 HTTP API，是进程间管道通信——零额外开销 |
+| **Windows 兼容性修复** | npm 全局安装的 `pi` 在 Windows subprocess 中无法被找到。定位到 `PiClientOptions.executable` 的 PATH 依赖问题，用 `shutil.which()` 动态解析 + `dataclasses.replace` 强制注入 |
+| **picable 协议补丁** | picable 0.1.0 事件解析器不认识 Pi 0.82.1 新增的 `agent_settled` 事件类型，直接抛异常。逆向 picable 的 `AgentEvent` 联合类型体系，新增事件数据类并注册到解析链 |
+| **全链路 Provider 适配** | Pi 的认证链是 auth.json → runtime_config → PiClientOptions → 子进程 argv。从 OpenAI 切换到 DeepSeek 时需三层对齐，逐层排查到原子配置 |
+
+---
 
 ## 📦 快速开始
 
-### 前置条件
+### 你需要
+- Python 3.11+ · Node.js 22+ · LLM API Key
+- Pi Agent Runtime：`npm install -g @earendil-works/pi-coding-agent`
 
-- Python 3.11+ & Node.js 22+
-- 一个 LLM API Key（支持 OpenAI / Anthropic / DeepSeek 等）
-- Pi Agent Runtime 已安装：`npm install -g @earendil-works/pi-coding-agent`
-
-### 安装
+### 三步跑起来
 
 ```bash
-git clone <this-repo>
+# 1. 克隆 + 装依赖
+git clone https://github.com/Carefreemoon1025/pi-data-triage.git
 cd pi-data-triage
-python -m venv .venv
-.venv\Scripts\activate  # Windows
+python -m venv .venv && .venv\Scripts\activate
 pip install picable streamlit pandas plotly
-
-# 应用 picable 兼容性补丁
 python setup_patches.py
-```
 
-### 配置 LLM
+# 2. 配 API Key
+echo '{"deepseek":{"type":"api_key","key":"sk-你的key"}}' > ~/.pi/agent/auth.json
 
-编辑 `~/.pi/agent/auth.json`：
-
-```json
-{"deepseek":{"type":"api_key","key":"sk-你的key"}}
-```
-
-或设环境变量：`DEEPSEEK_API_KEY=sk-你的key`
-
-### 运行
-
-```bash
+# 3. 启动
 streamlit run app.py
-# 打开 http://localhost:8501，上传 CSV，点击 Analyze with Pi
+# 打开 http://localhost:8501 → 上传 CSV → 点 Analyze with Pi
 ```
+
+---
 
 ## 📁 项目结构
 
 ```
 pi-data-triage/
-├── app.py              # Streamlit 主界面
-├── pi_session.py       # Pi Agent RPC 会话封装
-├── profiler.py          # 本地 pandas 数据画像
-├── prompts.py           # Agent prompt 构造
-├── runtime_config.py    # Provider/Model 配置
-├── skills/              # 自定义 Agent Skills（核心差异化）
-│   ├── data-triage/
-│   │   ├── SKILL.md
-│   │   └── scripts/helper.py
-│   ├── stat-deep-dive/
-│   └── viz-craft/
-├── patches/             # picable 兼容性补丁
-├── sample_data/         # 示例数据集
-└── .gitignore
+├── app.py               Streamlit 主界面
+├── pi_session.py        Agent RPC 会话封装（picable 驱动的 Pi 通信层）
+├── profiler.py          本地 pandas 数据画像（Agent 调用前的预处理）
+├── prompts.py           Agent prompt 构造
+├── runtime_config.py    Provider/Model 配置（自动匹配 DeepSeek）
+├── skills/              自定义 Agent Skills（核心差异化，持续开发中）
+├── patches/             picable 0.1.0 → Pi 0.82.1 兼容性补丁
+├── setup_patches.py     一键应用补丁
+└── sample_data/         示例数据集
 ```
+
+---
 
 ## 🛠️ 技术栈
 
-- **Agent Runtime**: Pi 0.82.1 (TypeScript, RPC 模式)
-- **Python RPC**: picable 0.1.0
-- **LLM**: DeepSeek v4-Flash (可切换 OpenAI/Anthropic)
-- **UI**: Streamlit 1.60.0
-- **数据分析**: pandas 3.0.5, plotly 6.9.0
-- **Agent 协议**: JSONL over stdin/stdout, Agent Skills Standard
+| 层 | 技术 |
+|----|------|
+| **Agent Runtime** | Pi 0.82.1 (TypeScript), RPC 模式 |
+| **Python ↔ Agent 通信** | picable 0.1.0, JSONL over stdin/stdout |
+| **LLM** | DeepSeek v4-Flash（可切换到 OpenAI/Anthropic） |
+| **UI** | Streamlit 1.60.0 |
+| **数据分析** | pandas 3.0.5, plotly 6.9.0, scikit-learn |
+| **Agent 协议** | Agent Skills Standard, 渐进披露（progressive disclosure） |
 
 ## 📝 License
 
