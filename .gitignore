@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual env
+.venv/
+venv/
+env/
+
+# Streamlit
+.streamlit/
+
+# Pi sessions (可能含敏感数据)
+*.jsonl
+.pi/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 数据文件(按需调整)
+# *.csv
+# *.csv.gz
+
+# 临时文件
+*.tmp
+*.log
