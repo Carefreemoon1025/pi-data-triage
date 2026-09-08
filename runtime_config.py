@@ -57,8 +57,8 @@ def _find_pi_executable() -> str:
 
 def build_example_client_options(
     *,
-    provider: str | None = None,
-    model: str | None = None,
+    provider: str | None = DEFAULT_PROVIDER,
+    model: str | None = DEFAULT_MODEL,
     no_session: bool = False,
     session_dir: str | None = None,
     cwd: str | None = None,
@@ -67,13 +67,13 @@ def build_example_client_options(
     startup_timeout: float = 10.0,
     command_timeout: float = 30.0,
     idle_timeout: float | None = None,
-    executable: str = "C:/Users/MYue/.workbuddy/binaries/node/versions/22.22.2/pi.cmd",
+    executable: str | None = None,
     process_factory: Callable[..., Any] | None = None,
     auto_close_subscriptions: bool = True,
 ) -> PiClientOptions:
     runtime = get_example_runtime_config(env)
     options = PiClientOptions(
-        executable=executable,
+        executable=executable or "pi",
         provider=runtime.provider if runtime.provider is not None else provider,
         model=runtime.model if runtime.model is not None else model,
         no_session=no_session,
@@ -87,5 +87,8 @@ def build_example_client_options(
         process_factory=process_factory,
         auto_close_subscriptions=auto_close_subscriptions,
     )
-    # Force executable to system-resolved path (overrides module cache staleness)
-    return replace(options, executable=_find_pi_executable())
+    # 未显式指定 executable 时，每次构建都重新解析系统路径
+    # （防御 Streamlit 模块缓存导致的陈旧解析结果）。
+    if executable is None:
+        return replace(options, executable=_find_pi_executable())
+    return options

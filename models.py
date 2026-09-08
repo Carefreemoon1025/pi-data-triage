@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import re
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
@@ -8,6 +10,14 @@ import pandas as pd
 
 class DatasetLoadError(ValueError):
     """Raised when an uploaded dataset cannot be loaded safely."""
+
+
+def sanitize_name(raw_name: str | None, fallback: str = "dataset") -> str:
+    """Normalize a dataset/file name to filesystem-safe characters."""
+    basename = os.path.basename(raw_name or "") or fallback
+    sanitized = re.sub(r"[^A-Za-z0-9._-]+", "-", basename)
+    sanitized = re.sub(r"-{2,}", "-", sanitized).strip("-")
+    return sanitized or fallback
 
 
 NoticeLevel = Literal["info", "warning"]

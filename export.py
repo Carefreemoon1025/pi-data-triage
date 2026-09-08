@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-import os
-import re
 from collections.abc import Mapping, Sequence
 
 try:
-    from .models import LoadNotice
+    from .models import LoadNotice, sanitize_name
 except ImportError:  # pragma: no cover - supports `streamlit run examples/dataset_triage/app.py`
-    from models import LoadNotice
+    from models import LoadNotice, sanitize_name
 
 
 def build_export_markdown(
@@ -49,7 +47,4 @@ def build_export_markdown(
 
 
 def build_export_basename(dataset_name: str | None) -> str:
-    basename = os.path.basename(dataset_name or "dataset")
-    stem = basename.rsplit(".", 1)[0] or basename
-    sanitized = re.sub(r"[^A-Za-z0-9._-]+", "-", stem).strip("-")
-    return sanitized or "dataset"
+    return sanitize_name(dataset_name)

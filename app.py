@@ -137,7 +137,7 @@ def main() -> None:
 
     analyze_disabled = state["analysis_running"]
     if st.button("Analyze with Pi", disabled=analyze_disabled, type="primary", use_container_width=True, key="analyze_button"):
-        assert analysis_prompt is not None
+        # analysis_prompt 只在 dataset/profile 为 None 时才可能是 None，而上方已提前 return
         state["conversation_history"].append({"role": "user", "text": "Analyze the uploaded dataset."})
         _run_streamed_request(
             lambda on_update: state["controller"].analyze_profile(analysis_prompt, on_update=on_update),
@@ -217,7 +217,6 @@ def _handle_upload(uploaded_file: Any, options: CsvLoadOptions) -> None:
     try:
         loaded_dataset = load_csv(uploaded_file, options=options)
     except DatasetLoadError as exc:
-        state["analysis_error"] = str(exc)
         state["current_load_signature"] = None
         state["loaded_dataset"] = None
         state["dataset_profile"] = None

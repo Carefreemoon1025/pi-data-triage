@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import os
 import queue
-import re
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -18,6 +16,7 @@ from picable.exceptions import (
 )
 
 try:
+    from models import sanitize_name
     from runtime_config import build_example_client_options
 except ImportError:  # pragma: no cover - supports package-style imports in tests
     import sys
@@ -25,6 +24,7 @@ except ImportError:  # pragma: no cover - supports package-style imports in test
     EXAMPLES_DIR = Path(__file__).resolve().parents[1]
     if str(EXAMPLES_DIR) not in sys.path:
         sys.path.insert(0, str(EXAMPLES_DIR))
+    from models import sanitize_name
     from runtime_config import build_example_client_options
 
 
@@ -149,9 +149,7 @@ class DatasetTriageSession:
 
 
 def _sanitize_dataset_name(dataset_name: str) -> str:
-    basename = os.path.basename(dataset_name) or "dataset"
-    sanitized = re.sub(r"[^A-Za-z0-9._-]+", "-", basename).strip("-")
-    return sanitized or "dataset"
+    return sanitize_name(dataset_name)
 
 
 _SESSION_ERRORS = (

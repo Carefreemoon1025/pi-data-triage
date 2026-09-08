@@ -9,9 +9,9 @@
 
 ## 和典型 LLM 应用的区别
 
-常见的做法是把 CSV 内容拼进 prompt 调 API。这里 Agent 收到数据后，自己判断该调用哪个 Skill（Python 工具脚本），拿到工具返回值后再决定下一步。LLM 负责推理，工具负责计算——各干各的。
+常见的做法是把 CSV 内容拼进 prompt 调 API。这里 Agent 收到结构化数据画像后，自主决定下一步——调用哪个 Skill（Python 工具脚本）、何时需要补充计算，拿到工具返回值后再继续推理。LLM 负责推理，工具负责计算——各干各的。
 
-实际跑一遍 co2-emissions-per-capita.csv.gz 的数据流
+设计的数据流（以 co2-emissions-per-capita.csv.gz 为例，Skill 调用为开发中目标）
 
 ```
 数据画像  →  Agent 判断需要统计建模  →  调用 PCA + KMeans
@@ -19,7 +19,7 @@
          →  Agent 整合输出报告
 ```
 
-每一步决策是 Agent 自己做的，没有预置流程。
+每一步决策由 Agent 自主做出，没有预置流程。当前版本 Agent 使用内置 read/bash 工具分析画像；上述 Skill 工具集（data-triage / stat-deep-dive / viz-craft）正在开发中，见下文 Agent Skills 一节。
 
 ## 架构
 
@@ -125,10 +125,11 @@ pi-data-triage/
 ├── profiler.py          本地 pandas 数据画像
 ├── prompts.py           prompt 构造
 ├── runtime_config.py    Provider / Model 配置
-├── skills/              Agent Skills（开发中）
 ├── patches/             picable 兼容性补丁
 ├── setup_patches.py     一键应用补丁
 └── sample_data/         示例 CSV
+
+skills/                  Agent Skills（规划中，尚未入库）
 ```
 
 ## 技术栈
